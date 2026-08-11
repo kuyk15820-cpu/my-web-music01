@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import "./musicPlayer.css";
 import "./progressBar.css";
 import { IconContext } from "react-icons";
 import { BiSkipNext, BiSkipPrevious } from "react-icons/bi";
 import { AiFillPlayCircle, AiFillPauseCircle } from "react-icons/ai";
 import { musicDB } from "../../resources/musicData";
+
 const MusicPlayer = (props) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,9 @@ const MusicPlayer = (props) => {
     }
     setIsPlaying(!isPlaying);
   };
-  const playNext = () => {
+
+  // แก้จุดที่ 1: ใช้ useCallback ครอบ playNext
+  const playNext = useCallback(() => {
     const nextIndex = (currentSongIndex + 1) % musicDB.length;
     setCurrentSongIndex(nextIndex);
     audioRef.current.pause();
@@ -32,11 +35,11 @@ const MusicPlayer = (props) => {
     audioRef.current.oncanplaythrough = () => {
       audioRef.current.play();
       audioRef.current.oncanplaythrough = null;
-      setLoading(false); // Set loading to false when the audio is ready
+      setLoading(false);
     };
 
-    setLoading(true); // Set loading to true while the new audio is loading
-  };
+    setLoading(true);
+  }, [currentSongIndex]);
 
   const playPrev = () => {
     const prevIndex = (currentSongIndex - 1 + musicDB.length) % musicDB.length;
@@ -49,41 +52,24 @@ const MusicPlayer = (props) => {
     audioRef.current.oncanplaythrough = () => {
       audioRef.current.play();
       audioRef.current.oncanplaythrough = null;
-      setLoading(false); // Set loading to false when the audio is ready
+      setLoading(false);
     };
 
-    setLoading(true); // Set loading to true while the new audio is loading
+    setLoading(true);
   };
-  //USE EFFECT FOR SENDING CURRENT TIME TO PARENT COMPONENT FOR LYRICS
+
+  // แก้จุดที่ 2: เพิ่ม currentTime ใน dependencies และส่งข้อมูลตรงตาม state
   useEffect(() => {
     const intervalId = setInterval(() => {
-      // Call the callback function in the parent component with the data
       props.getDataForLyrics({
         trackId: musicDB[currentSongIndex].id,
         currentTime: currentTime,
       });
-    }, 500); // Update data every 1 second
+    }, 500);
 
-    // Cleanup the interval when the component unmounts
     return () => clearInterval(intervalId);
-  }, [props]);
-  //USE EFFECT FOR TRACK SEEKING
-  useEffect(() => {
-    audioRef.current.addEventListener("timeupdate", handleTimeUpdate);
-    audioRef.current.addEventListener("loadedmetadata", handleLoadedMetadata);
+  }, [props, currentSongIndex, currentTime]);
 
-    // Add an event listener for the 'ended' event to autoplay the next song
-    audioRef.current.addEventListener("ended", playNext);
-
-    return () => {
-      audioRef.current.removeEventListener("timeupdate", handleTimeUpdate);
-      audioRef.current.removeEventListener(
-        "loadedmetadata",
-        handleLoadedMetadata
-      );
-      audioRef.current.removeEventListener("ended", playNext);
-    };
-  }, [currentSongIndex, playNext, props]);
   const handleTimeUpdate = () => {
     setCurrentTime(audioRef.current.currentTime);
   };
@@ -91,6 +77,22 @@ const MusicPlayer = (props) => {
   const handleLoadedMetadata = () => {
     setDuration(audioRef.current.duration);
   };
+
+  // แก้จุดที่ 3: จัดการ ref cleanup ป้องกัน memory leak
+  useEffect(() => {
+    const currentAudio = audioRef.current;
+    if (!currentAudio) return;
+
+    currentAudio.addEventListener("timeupdate", handleTimeUpdate);
+    currentAudio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    currentAudio.addEventListener("ended", playNext);
+
+    return () => {
+      currentAudio.removeEventListener("timeupdate", handleTimeUpdate);
+      currentAudio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      currentAudio.removeEventListener("ended", playNext);
+    };
+  }, [playNext]);
 
   const formatTime = (time) => {
     const minutes = Math.floor(time / 60);
@@ -102,7 +104,9 @@ const MusicPlayer = (props) => {
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
+
   const progress = (currentTime / duration) * 100 || 0;
+
   return (
     <div className="music-player">
       <audio
@@ -118,7 +122,12 @@ const MusicPlayer = (props) => {
             : musicDB[currentSongIndex].album}
         </h2>
         <div className="musicCover">
-          <img className="albumArtImage" src={musicDB[currentSongIndex].art} />
+          {/* แก้จุดที่ 4: เพิ่ม alt prop ให้แท็ก img */}
+          <img
+            className="albumArtImage"
+            src={musicDB[currentSongIndex].art}
+            alt="album cover"
+          />
         </div>
         <div className="progress-container">
           <div
