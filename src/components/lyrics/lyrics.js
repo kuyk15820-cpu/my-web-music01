@@ -1,20 +1,22 @@
 import React from "react";
 import "./lyrics.css";
 import { musicDB } from "../../resources/musicData";
+
 const Lyrics = (props) => {
-  const { trackId, currentTime } = props;
-  console.log(currentTime);
-  var lyrics =
-    trackId !== undefined
-      ? musicDB.filter((track) => track.id === trackId)[0].lyrics || []
-      : [];
-  // Find the current line of lyrics based on the currentTime
-  const currentLineIndex = lyrics.findIndex((line, index) => {
-    const nextLineTime = lyrics[index + 1]
-      ? lyrics[index + 1].time
-      : Number.MAX_VALUE;
-    return line.time <= currentTime && currentTime < nextLineTime;
-  });
+  const { trackId, currentTime = 0 } = props;
+
+  const currentTrack = musicDB.find((track) => track.id === trackId);
+  const lyrics = currentTrack ? currentTrack.lyrics || [] : [];
+
+  // หาบรรทัดเนื้อร้องปัจจุบัน (ใช้ findLastIndex เพื่อหาบรรทัดล่าสุดที่เวลาผ่านไปแล้ว)
+  let currentLineIndex = -1;
+  for (let i = 0; i < lyrics.length; i++) {
+    if (currentTime >= lyrics[i].time) {
+      currentLineIndex = i;
+    } else {
+      break;
+    }
+  }
 
   return lyrics.length !== 0 ? (
     <div className="lyrics-container">
