@@ -1,5 +1,5 @@
-import taylorAlbum from './resources/taylor-album.png';
-import styleAudio from './resources/style-clip.mp3';
+import taylorAlbum from './taylor-album.png';
+import styleAudio from './style-clip.mp3';
 
 export const musicDB = [
   {
